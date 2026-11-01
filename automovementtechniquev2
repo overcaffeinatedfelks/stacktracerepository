@@ -41,9 +41,7 @@ public class automovementtechniquev2 extends LinearOpMode {
         telemetry.update();
     }
 
-// ok just to be clear
-// everything below this will be movement 
-//so ya
+// sequence hold
 
     private List<Movement> buildSequence() {
         List<Movement> sequence = new ArrayList<>();
@@ -53,19 +51,20 @@ public class automovementtechniquev2 extends LinearOpMode {
         sequence.add(new BackwardMove(0.5, 1.5));     // Backward at 50% power for 1.5 sec
         sequence.add(new StrafeLeftMove(0.5, 2.0));   // Strafe left at 50% power for 2.0 sec
 
-        // add stuff above or below just make sure its not outside of this list
+        // Turn examples (remove the // to use them):
+        // sequence.add(new TurnRightMove(0.4, 0.6));  // Turn right (clockwise) at 40% for 0.6 sec
+        // sequence.add(new TurnLeftMove(0.4, 0.6));   // Turn left (counterclockwise) at 40% for 0.6 sec
+
+        // add movement within this list and follow provided example formats
 
         return sequence;
     }
-
- //dont edit anything below this line
-//  please
-
-
+// dont edit things below this
     private interface Movement {
         void run(LinearOpMode opMode, MecanumDrive drive);
     }
 
+// holding point
     private static class MecanumDrive {
         private DcMotor leftFront;
         private DcMotor rightFront;
@@ -78,7 +77,9 @@ public class automovementtechniquev2 extends LinearOpMode {
             leftBack   = hardwareMap.get(DcMotor.class, "left_back_drive");
             rightBack  = hardwareMap.get(DcMotor.class, "right_back_drive");
 
-
+            // Left side motors are mounted mirrored, so reverse them so that
+            // positive power drives the robot forward. If your robot drives backward
+            // when you expect forward, swap FORWARD and REVERSE here.
             leftFront.setDirection(DcMotor.Direction.REVERSE);
             leftBack.setDirection(DcMotor.Direction.REVERSE);
             rightFront.setDirection(DcMotor.Direction.FORWARD);
@@ -111,6 +112,7 @@ public class automovementtechniquev2 extends LinearOpMode {
         }
     }
 
+// thing
     private static abstract class TimedMovement implements Movement {
         protected final double power;     // 0.0 to 1.0
         protected final double seconds;   // how long to run
@@ -148,6 +150,9 @@ public class automovementtechniquev2 extends LinearOpMode {
         }
     }
 
+// movement
+
+    /** Drive straight forward: all four wheels spin forward. */
     private static class ForwardMove extends TimedMovement {
         ForwardMove(double power, double seconds) {
             super("Forward", power, seconds);
@@ -196,6 +201,32 @@ public class automovementtechniquev2 extends LinearOpMode {
         protected void applyPower(MecanumDrive drive) {
             //                    LF      RF      LB      RB
             drive.setMotorPowers(-power,  power,  power, -power);
+        }
+    }
+
+    /** Turn left in place (counterclockwise): left wheels backward, right wheels forward. */
+    private static class TurnLeftMove extends TimedMovement {
+        TurnLeftMove(double power, double seconds) {
+            super("Turn Left", power, seconds);
+        }
+
+        @Override
+        protected void applyPower(MecanumDrive drive) {
+            //                    LF      RF      LB      RB
+            drive.setMotorPowers(-power,  power, -power,  power);
+        }
+    }
+
+    /** Turn right in place (clockwise): left wheels forward, right wheels backward. */
+    private static class TurnRightMove extends TimedMovement {
+        TurnRightMove(double power, double seconds) {
+            super("Turn Right", power, seconds);
+        }
+
+        @Override
+        protected void applyPower(MecanumDrive drive) {
+            //                    LF      RF      LB      RB
+            drive.setMotorPowers( power, -power,  power, -power);
         }
     }
 }
