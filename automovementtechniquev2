@@ -1,0 +1,201 @@
+package org.firstinspires.ftc.teamcode;
+
+import com.qualcomm.robotcore.eventloop.opmode.Autonomous;
+import com.qualcomm.robotcore.eventloop.opmode.LinearOpMode;
+import com.qualcomm.robotcore.hardware.DcMotor;
+import com.qualcomm.robotcore.hardware.HardwareMap;
+import com.qualcomm.robotcore.util.ElapsedTime;
+
+import java.util.ArrayList;
+import java.util.List;
+
+@Autonomous(name = "automovementtechniquev2", group = "Linear Opmode")
+
+public class automovementtechniquev2 extends LinearOpMode {
+
+    // Short pause between moves so the robot settles (milliseconds). Set to 0 for none.
+    private static final int PAUSE_BETWEEN_MOVES_MS = 250;
+
+    @Override
+    public void runOpMode() {
+        telemetry.addData("Status", "Initialized");
+        telemetry.update();
+
+        MecanumDrive drive = new MecanumDrive(hardwareMap);
+        List<Movement> sequence = buildSequence();
+
+        // Wait for the game to start (driver presses PLAY)
+        waitForStart();
+
+        // Run every movement in order
+        for (Movement move : sequence) {
+            if (!opModeIsActive()) {
+                break;
+            }
+            move.run(this, drive);
+            sleep(PAUSE_BETWEEN_MOVES_MS);
+        }
+
+        drive.stop();
+        telemetry.addData("Status", "Done");
+        telemetry.update();
+    }
+
+// ok just to be clear
+// everything below this will be movement 
+//so ya
+
+    private List<Movement> buildSequence() {
+        List<Movement> sequence = new ArrayList<>();
+
+        sequence.add(new ForwardMove(0.5, 1.5));      // Forward at 50% power for 1.5 sec
+        sequence.add(new StrafeRightMove(0.5, 2.0));  // Strafe right at 50% power for 2.0 sec
+        sequence.add(new BackwardMove(0.5, 1.5));     // Backward at 50% power for 1.5 sec
+        sequence.add(new StrafeLeftMove(0.5, 2.0));   // Strafe left at 50% power for 2.0 sec
+
+        // add stuff above or below just make sure its not outside of this list
+
+        return sequence;
+    }
+
+ //dont edit anything below this line
+//  please
+
+
+    private interface Movement {
+        void run(LinearOpMode opMode, MecanumDrive drive);
+    }
+
+    private static class MecanumDrive {
+        private DcMotor leftFront;
+        private DcMotor rightFront;
+        private DcMotor leftBack;
+        private DcMotor rightBack;
+
+        MecanumDrive(HardwareMap hardwareMap) {
+            leftFront  = hardwareMap.get(DcMotor.class, "left_front_drive");
+            rightFront = hardwareMap.get(DcMotor.class, "right_front_drive");
+            leftBack   = hardwareMap.get(DcMotor.class, "left_back_drive");
+            rightBack  = hardwareMap.get(DcMotor.class, "right_back_drive");
+
+
+            leftFront.setDirection(DcMotor.Direction.REVERSE);
+            leftBack.setDirection(DcMotor.Direction.REVERSE);
+            rightFront.setDirection(DcMotor.Direction.FORWARD);
+            rightBack.setDirection(DcMotor.Direction.FORWARD);
+
+            // No encoders are used for time-based driving
+            leftFront.setMode(DcMotor.RunMode.RUN_WITHOUT_ENCODER);
+            rightFront.setMode(DcMotor.RunMode.RUN_WITHOUT_ENCODER);
+            leftBack.setMode(DcMotor.RunMode.RUN_WITHOUT_ENCODER);
+            rightBack.setMode(DcMotor.RunMode.RUN_WITHOUT_ENCODER);
+
+            // Stop quickly instead of coasting
+            leftFront.setZeroPowerBehavior(DcMotor.ZeroPowerBehavior.BRAKE);
+            rightFront.setZeroPowerBehavior(DcMotor.ZeroPowerBehavior.BRAKE);
+            leftBack.setZeroPowerBehavior(DcMotor.ZeroPowerBehavior.BRAKE);
+            rightBack.setZeroPowerBehavior(DcMotor.ZeroPowerBehavior.BRAKE);
+        }
+
+        /** Set the power of each wheel individually (-1.0 to 1.0). */
+        void setMotorPowers(double lf, double rf, double lb, double rb) {
+            leftFront.setPower(lf);
+            rightFront.setPower(rf);
+            leftBack.setPower(lb);
+            rightBack.setPower(rb);
+        }
+
+        /** Stop all four motors. */
+        void stop() {
+            setMotorPowers(0, 0, 0, 0);
+        }
+    }
+
+    private static abstract class TimedMovement implements Movement {
+        protected final double power;     // 0.0 to 1.0
+        protected final double seconds;   // how long to run
+        private final String name;
+
+        TimedMovement(String name, double power, double seconds) {
+            this.name = name;
+            this.power = Math.abs(power);
+            this.seconds = seconds;
+        }
+
+        /** Set the four wheel powers for this kind of movement. */
+        protected abstract void applyPower(MecanumDrive drive);
+
+        @Override
+        public void run(LinearOpMode opMode, MecanumDrive drive) {
+            // Ensure that the opmode is still active
+            if (!opMode.opModeIsActive()) {
+                return;
+            }
+
+            applyPower(drive);
+
+            // Keep looping until time is up or STOP is pressed
+            ElapsedTime timer = new ElapsedTime();
+            while (opMode.opModeIsActive() && timer.seconds() < seconds) {
+                opMode.telemetry.addData("Move", name);
+                opMode.telemetry.addData("Power", "%.2f", power);
+                opMode.telemetry.addData("Time", "%.1f / %.1f sec", timer.seconds(), seconds);
+                opMode.telemetry.update();
+            }
+
+            // Stop all motion
+            drive.stop();
+        }
+    }
+
+    private static class ForwardMove extends TimedMovement {
+        ForwardMove(double power, double seconds) {
+            super("Forward", power, seconds);
+        }
+
+        @Override
+        protected void applyPower(MecanumDrive drive) {
+            //                    LF     RF     LB     RB
+            drive.setMotorPowers( power,  power,  power,  power);
+        }
+    }
+
+    /** Drive straight backward: all four wheels spin backward. */
+    private static class BackwardMove extends TimedMovement {
+        BackwardMove(double power, double seconds) {
+            super("Backward", power, seconds);
+        }
+
+        @Override
+        protected void applyPower(MecanumDrive drive) {
+            //                    LF      RF      LB      RB
+            drive.setMotorPowers(-power, -power, -power, -power);
+        }
+    }
+
+    /** Strafe right: LF and RB spin forward, RF and LB spin backward. */
+    private static class StrafeRightMove extends TimedMovement {
+        StrafeRightMove(double power, double seconds) {
+            super("Strafe Right", power, seconds);
+        }
+
+        @Override
+        protected void applyPower(MecanumDrive drive) {
+            //                    LF      RF      LB      RB
+            drive.setMotorPowers( power, -power, -power,  power);
+        }
+    }
+
+    /** Strafe left: RF and LB spin forward, LF and RB spin backward. */
+    private static class StrafeLeftMove extends TimedMovement {
+        StrafeLeftMove(double power, double seconds) {
+            super("Strafe Left", power, seconds);
+        }
+
+        @Override
+        protected void applyPower(MecanumDrive drive) {
+            //                    LF      RF      LB      RB
+            drive.setMotorPowers(-power,  power,  power, -power);
+        }
+    }
+}
